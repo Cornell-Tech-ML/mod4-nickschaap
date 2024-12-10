@@ -1,5 +1,4 @@
-"""
-Description:
+"""Description:
 Note: Make sure that both the new and old module files are in same directory!
 
 This script helps you sync your previous module works with current modules.
@@ -10,6 +9,7 @@ Usage: python sync_previous_module.py <source_dir_name> <dest_dir_name>
 
 Ex:  python sync_previous_module.py mle-module-0-sauravpanda24 mle-module-1-sauravpanda24
 """
+
 import os
 import shutil
 import sys
@@ -38,7 +38,7 @@ dest = sys.argv[2]
 # copy the files from source to destination
 try:
     for file in files_to_move:
-        print(f"Moving file : ", file)
+        print("Moving file : ", file)
         shutil.copy(
             os.path.join(grandparent_path, source, file),
             os.path.join(grandparent_path, dest, file),
@@ -48,3 +48,4 @@ except Exception as e:
     print(
         "Something went wrong! please check if the source and destination folders are present in same folder"
     )
+    print(e)

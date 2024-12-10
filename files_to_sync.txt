@@ -13,7 +13,7 @@ project/run_tensor.py
 minitorch/operators.py
 minitorch/module.py
 minitorch/autodiff.py
-minitorch/tensor.py
+minitorch/tensors.py
 minitorch/datasets.py
 minitorch/testing.py
 minitorch/optim.py
