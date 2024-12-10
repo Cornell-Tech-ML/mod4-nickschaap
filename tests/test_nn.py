@@ -8,6 +8,78 @@ from .strategies import assert_close
 from .tensor_strategies import tensors
 
 
+def all_close(a: Tensor, b: Tensor) -> bool:
+    assert a.shape == b.shape, f"Shape mismatch {a.shape} != {b.shape}"
+    return a.is_close(b).all().item() == 1.0
+
+
+def test_tile() -> None:
+    a = minitorch.tensor([[[[1.0, 2.0], [3.0, 4.0]]]])
+    out, new_height, new_width = minitorch.tile(a, (2, 2))
+    assert new_height == 1
+    assert new_width == 1
+    assert out.shape == (1, 1, 1, 1, 4)
+
+
+def test_avg_pool() -> None:
+    a = minitorch.tensor([[[[1.0, 2.0], [3.0, 4.0]]]])
+    out = minitorch.avgpool2d(a, (2, 2))
+    assert out.shape == (1, 1, 1, 1)
+
+    assert_close(out[0, 0, 0, 0], 2.5)
+
+
+def test_argmax() -> None:
+    a = minitorch.tensor([0, 1, 2, 3, 4, 5])
+    out = minitorch.argmax(a, 0)
+    assert out == 5
+
+
+def test_max_grad() -> None:
+    a = minitorch.tensor([0, 1, 2, 3, 4, 5])
+    b = a.max()
+    b.backward()
+    assert a.grad is not None
+    assert a.grad == minitorch.tensor([0, 0, 0, 0, 0, 1])
+
+
+def test_max_grad_2() -> None:
+    a = minitorch.tensor([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], requires_grad=True)
+    b = a.max()
+    b.backward()
+    assert a.grad is not None
+
+    assert all_close(minitorch.tensor([[0, 0, 0, 0, 0, 1], [0, 0, 0, 0, 0, 1]]), a.grad)
+
+
+def test_max_grad_3() -> None:
+    a = minitorch.tensor([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], requires_grad=True)
+    b = a.max(0)
+    b.backward(minitorch.zeros(b.shape) + 1)
+    assert a.grad is not None
+
+    assert all_close(minitorch.tensor([[1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1]]), a.grad)
+
+
+def test_max_grad_4() -> None:
+    a = minitorch.tensor([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], requires_grad=True)
+    b = a.max(1)
+
+    b.backward(minitorch.zeros(b.shape) + 1)
+    assert a.grad is not None
+
+    assert all_close(minitorch.tensor([[0, 0, 0, 0, 0, 1], [0, 0, 0, 0, 0, 1]]), a.grad)
+
+
+def test_eq() -> None:
+    a = minitorch.tensor([0, 1, 2, 3, 4, 5])
+    b = minitorch.tensor([0, 1, 2, 3, 4, 5])
+    assert all_close(a, b)
+
+    c = minitorch.tensor([0, 1, 2, 3, 4, 6])
+    assert not all_close(a, c)
+
+
 @pytest.mark.task4_3
 @given(tensors(shape=(1, 1, 4, 4)))
 def test_avg(t: Tensor) -> None:
@@ -31,8 +103,16 @@ def test_avg(t: Tensor) -> None:
 @pytest.mark.task4_4
 @given(tensors(shape=(2, 3, 4)))
 def test_max(t: Tensor) -> None:
-    # TODO: Implement for Task 4.4.
-    raise NotImplementedError("Need to implement for Task 4.4")
+    t[0, 0, 0] = 1e9
+    t[0, 1, 0] = 1e9
+    t[0, 2, 0] = 1e9
+    out = t.max()
+    assert_close(out.item(), 1e9)
+    assert out.shape == (1,)
+    reduced = t.max(dim=0)
+
+    assert reduced.shape == (1, 3, 4)
+    assert_close(reduced[0, 0, 0], 1e9)
 
 
 @pytest.mark.task4_4

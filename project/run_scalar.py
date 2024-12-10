@@ -4,6 +4,7 @@ Be sure you have minitorch installed in you Virtual Env.
 """
 
 import random
+from typing import Iterable
 
 import minitorch
 
@@ -11,9 +12,11 @@ import minitorch
 class Network(minitorch.Module):
     def __init__(self, hidden_layers):
         super().__init__()
-        raise NotImplementedError("Need to include this file from past assignment.")
+        self.layer1 = Linear(2, hidden_layers)
+        self.layer2 = Linear(hidden_layers, hidden_layers)
+        self.layer3 = Linear(hidden_layers, 1)
 
-    def forward(self, x):
+    def forward(self, x) -> float:
         middle = [h.relu() for h in self.layer1.forward(x)]
         end = [h.relu() for h in self.layer2.forward(middle)]
         return self.layer3.forward(end)[0].sigmoid()
@@ -39,8 +42,15 @@ class Linear(minitorch.Module):
                 )
             )
 
-    def forward(self, inputs):
-        raise NotImplementedError("Need to include this file from past assignment.")
+    def forward(self, inputs: tuple[minitorch.ScalarLike]) -> Iterable[minitorch.ScalarLike]:
+        out = []
+        for j, bias in enumerate(self.bias):
+            s = bias.value
+            for i, inp in enumerate(inputs):
+                s += inp * self.weights[i][j].value
+            out.append(s)
+
+        return out
 
 
 def default_log_fn(epoch, total_loss, correct, losses):

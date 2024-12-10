@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Sequence, Tuple
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from .operators import reduce
 
 
 class Module:
@@ -20,9 +21,9 @@ class Module:
     training: bool
 
     def __init__(self) -> None:
-        self._modules = {}
-        self._parameters = {}
-        self.training = True
+        self.__dict__["_modules"] = {}
+        self.__dict__["_parameters"] = {}
+        self.__dict__["training"] = True
 
     def modules(self) -> Sequence[Module]:
         """Return the direct child modules of this module."""
@@ -30,12 +31,16 @@ class Module:
         return list(m.values())
 
     def train(self) -> None:
-        """Set the mode of this module and all descendent modules to `train`."""
-        raise NotImplementedError("Need to include this file from past assignment.")
+        """Set the `training` flag of this and descendent to true."""
+        self.__dict__["training"] = True
+        for module in self.modules():
+            module.train()
 
     def eval(self) -> None:
-        """Set the mode of this module and all descendent modules to `eval`."""
-        raise NotImplementedError("Need to include this file from past assignment.")
+        """Set the `training` flag of this and descendent to true."""
+        self.__dict__["training"] = False
+        for module in self.modules():
+            module.eval()
 
     def named_parameters(self) -> Sequence[Tuple[str, Parameter]]:
         """Collect all the parameters of this module and its descendents.
@@ -45,11 +50,35 @@ class Module:
             The name and `Parameter` of each ancestor parameter.
 
         """
-        raise NotImplementedError("Need to include this file from past assignment.")
+
+        def _named_parameters(
+            self: Module, parent_key: Union[str, None]
+        ) -> Sequence[Tuple[str, Parameter]]:
+            p: Dict[str, Parameter] = self._parameters
+            name_prefix = ""
+            if parent_key is not None:
+                name_prefix = parent_key + "."
+            named_parameters = reduce(
+                p.items(),
+                lambda acc, curr: acc + [(name_prefix + curr[0], curr[1])],
+                [],
+            )
+            m: Dict[str, Module] = self.__dict__["_modules"]
+            for name, module in m.items():
+                if parent_key is not None:
+                    name = parent_key + "." + name
+                named_parameters.extend(_named_parameters(module, name))
+            return named_parameters
+
+        return _named_parameters(self, None)
 
     def parameters(self) -> Sequence[Parameter]:
         """Enumerate over all the parameters of this module and its descendents."""
-        raise NotImplementedError("Need to include this file from past assignment.")
+        p: Dict[str, Parameter] = self.__dict__["_parameters"]
+        parameters = list(p.values())
+        for module in self.modules():
+            parameters.extend(module.parameters())
+        return parameters
 
     def add_parameter(self, k: str, v: Any) -> Parameter:
         """Manually add a parameter. Useful helper for scalar parameters.
@@ -68,13 +97,13 @@ class Module:
         self.__dict__["_parameters"][k] = val
         return val
 
-    def __setattr__(self, key: str, val: Parameter) -> None:
+    def __setattr__(self, key: str, val: Union[Parameter, Module, Any]) -> None:
         if isinstance(val, Parameter):
             self.__dict__["_parameters"][key] = val
         elif isinstance(val, Module):
             self.__dict__["_modules"][key] = val
         else:
-            super().__setattr__(key, val)
+            self.__dict__[key] = val
 
     def __getattr__(self, key: str) -> Any:
         if key in self.__dict__["_parameters"]:
@@ -85,6 +114,7 @@ class Module:
         return None
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """Defines the default callable function as a forward pass operation."""
         return self.forward(*args, **kwargs)
 
     def __repr__(self) -> str:

@@ -19,6 +19,7 @@ from .scalar_functions import (
     ReLU,
     ScalarFunction,
     Sigmoid,
+    wrap_tuple,
 )
 
 ScalarLike = Union[float, int, "Scalar"]
@@ -70,6 +71,9 @@ class Scalar:
         object.__setattr__(self, "name", str(self.unique_id))
         object.__setattr__(self, "data", float(self.data))
 
+    def __hash__(self) -> int:
+        return self.unique_id
+
     def __repr__(self) -> str:
         return f"Scalar({self.data})"
 
@@ -91,9 +95,49 @@ class Scalar:
     def __rmul__(self, b: ScalarLike) -> Scalar:
         return self * b
 
+    def __add__(self, b: ScalarLike) -> Scalar:
+        """Addition."""
+        return Add.apply(self, b)
+
+    def __sub__(self, b: ScalarLike) -> Scalar:
+        """Subtraction."""
+        return Add.apply(self, Neg.apply(b))
+
+    def __neg__(self) -> Scalar:
+        """Negation."""
+        return Neg.apply(self)
+
+    def __lt__(self, b: ScalarLike) -> Scalar:
+        """Less than comparison."""
+        return LT.apply(self, b)
+
+    def __gt__(self, b: ScalarLike) -> Scalar:
+        """Greater than comparison."""
+        return LT.apply(b, self)
+
+    def __eq__(self, b: ScalarLike) -> Scalar:
+        """Equality comparison."""
+        return EQ.apply(self, b)
+
+    def relu(self) -> Scalar:
+        """Rectified linear unit function."""
+        return ReLU.apply(self)
+
+    def sigmoid(self) -> Scalar:
+        """Sigmoid function."""
+        return Sigmoid.apply(self)
+
+    def exp(self) -> Scalar:
+        """Exponential function."""
+        return Exp.apply(self)
+
+    def log(self) -> Scalar:
+        """Natural logarithm."""
+        return Log.apply(self)
+
     # Variable elements for backprop
 
-    def accumulate_derivative(self, x: Any) -> None:
+    def accumulate_derivative(self, x: float) -> None:
         """Add `val` to the the derivative accumulated on this variable.
         Should only be called during autodifferentiation on leaf variables.
 
@@ -104,29 +148,43 @@ class Scalar:
         """
         assert self.is_leaf(), "Only leaf variables can have derivatives."
         if self.derivative is None:
-            self.__setattr__("derivative", 0.0)
-        self.__setattr__("derivative", self.derivative + x)
+            # self.__setattr__("derivative", 0.0)
+            self.derivative = 0.0
+        self.derivative += x
 
     def is_leaf(self) -> bool:
         """True if this variable created by the user (no `last_fn`)"""
         return self.history is not None and self.history.last_fn is None
 
     def is_constant(self) -> bool:
+        """True if this variable is a constant (no derivative needed)"""
         return self.history is None
 
     @property
     def parents(self) -> Iterable[Variable]:
-        """Get the variables used to create this one."""
+        """Get the parent variables of this variable in the computation graph."""
         assert self.history is not None
         return self.history.inputs
 
-    def chain_rule(self, d_output: Any) -> Iterable[Tuple[Variable, Any]]:
+    def chain_rule(self, d_output: float) -> Iterable[Tuple[Variable, float]]:
+        """Apply the chain rule to compute the derivatives of the parent variables."""
         h = self.history
         assert h is not None
         assert h.last_fn is not None
         assert h.ctx is not None
-
-        raise NotImplementedError("Need to include this file from past assignment.")
+        assert h.inputs is not None
+        # Implement the chain_rule function in Scalar for functions of arbitrary arguments.
+        # This function should be able to backward process a function by passing
+        # it in a context and \(d\) and then collecting the local derivatives.
+        # It should then pair these with the right variables and return them.
+        # This function is also where we filter out constants that were used on the forward pass,
+        # but do not need derivatives.
+        d_inputs = wrap_tuple(h.last_fn.backward(h.ctx, d_output))
+        return [
+            (inp, d_input)
+            for inp, d_input in zip(h.inputs, d_inputs)
+            if not inp.is_constant()
+        ]
 
     def backward(self, d_output: Optional[float] = None) -> None:
         """Calls autodiff to fill in the derivatives for the history of this object.
@@ -141,17 +199,15 @@ class Scalar:
             d_output = 1.0
         backpropagate(self, d_output)
 
-    raise NotImplementedError("Need to include this file from past assignment.")
-
 
 def derivative_check(f: Any, *scalars: Scalar) -> None:
     """Checks that autodiff works on a python function.
     Asserts False if derivative is incorrect.
 
-    Parameters
-    ----------
+    Args:
+    ----
         f : function from n-scalars to 1-scalar.
-        *scalars  : n input scalar values.
+        *scalars : n input scalar values.
 
     """
     out = f(*scalars)
