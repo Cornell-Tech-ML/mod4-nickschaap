@@ -265,11 +265,11 @@ def encode_sentiment_data(dataset, pretrained_embeddings, N_train, N_val=0):
 
 def load_glove_embeddings(path="project/data/glove/50d.txt"):
     """Load GloVe embeddings from local file.
-    
+
     Args:
     ----
         path: Path to the GloVe embeddings file
-        
+
     Returns:
     -------
         dict: Word to embedding mapping
@@ -288,33 +288,33 @@ word2emb = load_glove_embeddings()
 
 class GloveEmbedding:
     """Simple wrapper class to mimic the original GloveEmbedding interface."""
-    
+
     def __init__(self, word2emb):
         self.word2emb = word2emb
         # Get embedding dimension from first entry
         self.d_emb = len(next(iter(word2emb.values())))
-        
+
     def emb(self, word, default=None):
         """Get embedding for a word.
-        
+
         Args:
         ----
             word: Word to get embedding for
             default: Default value if word not found
-            
+
         Returns:
         -------
             list: Embedding vector
         """
         return self.word2emb.get(word, default)
-    
+
     def __contains__(self, word):
         """Support for 'in' operator.
-        
+
         Args:
         ----
             word: Word to check
-            
+
         Returns:
         -------
             bool: True if word is in embeddings
